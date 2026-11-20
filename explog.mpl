@@ -1,0 +1,65 @@
+# Exp-log transform i[1..K] -> o between average and max
+
+o_i := log(sum(exp(mu * i[k]), k = 1..K)/K)/mu:
+
+## Series at µ = 0
+o_i_0 := series(o, mu = 0, 2);
+
+## Series at µ = +oo
+
+### The i[1] extracted formula, assuming withour loss of generality i[1] >= i[2] …
+rho := log(1 + sum(exp(-mu * (i[1] - i[k])), k = 2..K)):
+o_i_oo := i[1]  - log(K) / mu + rho / mu:
+
+### Verification for a given K, mu = 1 without loss of generality
+evalb(expand(eval(subs(mu = 1, K = 11, exp(o_i) = exp(o_i_oo)))));
+
+### Verification of the limit in the typical case K = 2 and or up to a monotone transformation
+rho_oo_2 := series(eval(subs(K = 2, rho)), mu = infinity, 1) assuming i[1] > i[2];
+rho_oo_11:= series(subs(map(k->i[k] = i[1] - k^(1/2), {$2..11}), eval(subs(K = 11, rho))), mu = infinity, 1);
+
+### Compute the bounds for i[k] in [-1, 1]
+simplify([log(sum(exp(-mu), k = 1..K)/K) / mu, log(sum(exp(mu), k = 1..K)/K) / mu]) assuming mu > 0;
+simplify(solve({log(1+nu_min)/mu = log(sum(exp(-mu), k = 1..K)/K), log(1+nu_max)/mu = log(sum(exp(mu), k = 1..K)/K)}, {nu_min, nu_max}));
+
+## Plot the function for some µ	
+plotsetup(jpeg, plotoutput="explog.jpg", plotoptions="width=600,height=600"):
+plot(map(mu_->subs(i[1]=x, i[2]=1/2,mu=mu_,eval(subs(K=2, o_i))),[0.01, 0.1, 1,10,100]),x=-1..1,color=["Black", "Orange", "Red","Green","Blue"]);
+plotsetup(x11):
+
+## Sigmoid function approximation of exp and log
+
+h := x -> 1/(1+exp(-4*x)):
+h_ := x -> a + b * h(x - 1) + c * h(x/2):
+sl_exp := solve({h_(-1) = exp(-1), h_(0) = exp(0), h_(1)=exp(1)}, {a, b, c}):
+h_exp:= unapply(subs(sl_exp, h_(x)), x):
+err_exp := sum(evalf(abs(h_exp(x/50)-exp(x/50))), x = -50..50)/101;
+plotsetup(jpeg, plotoutput="expneuronoid.jpg", plotoptions="width=600,height=600"):
+plot([exp, h_exp, h_exp-exp],-1..1, color=["Blue", "Green", "Red"]);
+plotsetup(x11):
+unassign(h): lprint(subs(evalf(sl_exp), h_(x)));
+
+h := x -> 1/(1+exp(-4*x)):
+h_ := x -> a + b * h(x/2) + c * h(x/10):
+sl_log := solve({h_(1) = log(1), h_(0.5*(1+exp(1))) = log(0.5*(1+exp(1))), h_(exp(1)) = log(exp(1))}, {a, b, c}):
+h_log  := unapply(subs(sl_log , h_(x)), x):
+err_log := sum(evalf(abs(h_log(1+(exp(1)-1)*x/100)-log(1+(exp(1)-1)*x/100))), x = 1..100)/101;
+plotsetup(jpeg, plotoutput="logneuronoid.jpg", plotoptions="width=600,height=600"):
+plot([log, h_log, h_log-log],1..exp(1), color=["Blue", "Green", "Red"]);
+plotsetup(x11):
+unassign(h): lprint(subs(evalf(sl_log), h_(x)));
+
+## Valued product of v_i in [-1, 1]
+
+l_v := v -> log(((exp(1)-1) * v + (exp(1)+1))/2):
+
+ok := evalb([l_v(-1),l_v(1)] = [0, 1]);
+
+v_12 := subs(
+     {b=4/(exp(1)-1)^2, c = coth(1/2)},
+     b*exp(l_v(v_1) + l_v(v_2)) - c * (v_1 + v_2 + c)):
+
+ok := evalb(simplify(v_12 = v_1 * v_2));
+
+
+
